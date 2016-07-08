@@ -33,10 +33,14 @@ for /F "tokens=*" %%a in (MANIFEST.MF) do (
 		)
 	)
 	IF !foundDependencies!==true (
-		IF NOT "!text!"=="!text:Plugin-Developers=!" (
+		IF NOT "!text!"=="!text:Long-Name=!" (
 			set foundDependencies=false
 		) ELSE (
-			set dependencies=!dependencies!!text!
+			IF NOT "!text!"=="!text:Plugin-Developers=!" (
+				set foundDependencies=false
+			) ELSE (				
+				set dependencies=!dependencies!!text!
+			)
 		)
 	)
 )

@@ -8,7 +8,7 @@ if not exist %outDir% mkdir %outDir%
 
 cd %outDir%
 for /f %%a in (%message%) do ( 
-	echo Downloading %%a
+	
 	CALL :downloadPlugins %%a
 )
 cd ..
@@ -16,31 +16,46 @@ cd ..
 EXIT /B %ERRORLEVEL%
 
 :downloadPlugins
+IF NOT EXIST %~1.hpi (
+	echo Downloading %~1
+	..\curl https://updates.jenkins-ci.org/latest/%~1.hpi -k -O -L -s
+)
 
-REM download plugin
-
-..\curl https://updates.jenkins-ci.org/latest/%~1.hpi -k -O -L
-
-REM check dependencies
-D:\Programs\7-Zip\7z e %~1.hpi META-INF/MANIFEST.MF -aoa
+echo check %~1.hpi dependencies
+D:\Programs\7-Zip\7z e %~1.hpi META-INF/MANIFEST.MF -aoa > nul
+set foundDependencies=false
 set dependencies=
-for /F "delims=" %%a in ('findstr "Dependencies" MANIFEST.MF') do (
-	set "dependencies=%%a"
-) 
-
-IF "%dependencies%"=="" (
-	echo no mores
-) ELSE (
-	set dependencies=%dependencies:~21,-1%
-	echo Dependencies are: !dependencies!
-	for %%A in (!dependencies!) do (
-		for /F "tokens=1* delims=:" %%B in ("%%A") do (
-			CALL :downloadPlugins %%B
+for /F "tokens=*" %%a in (MANIFEST.MF) do (
+	set text=%%a
+	IF %foundDependencies%==false (
+		If NOT "!text!"=="!text:Dependencies=!" (
+	   		set foundDependencies=true
+		)
+	)
+	IF !foundDependencies!==true (
+		IF NOT "!text!"=="!text:Plugin-Developers=!" (
+			set foundDependencies=false
+		) ELSE (
+			set dependencies=!dependencies!!text!
 		)
 	)
 )
 
-
+IF NOT "%dependencies%"=="" (
+	set dependencies=%dependencies:~21%
+	echo Dependencies are: !dependencies!
+	for %%A in (!dependencies!) do (
+		for /F "tokens=1* delims=:" %%B in ("%%A") do (
+			set temp=%%A
+			if "!temp!"=="!temp:resolution=!" (
+				if "!temp!"=="!temp:optional=!" (
+					CALL :downloadPlugins %%B
+				)
+			)
+			
+		)
+	)
+)
 REM return to main folder
 EXIT /B 0
 
